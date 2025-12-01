@@ -1,4 +1,5 @@
 import {ShapeCard} from './shapecard.js';
+import {MemoryGame} from './memorygame.js';
 
 /************************ BEGINNING OF EXAMPLES *******************************/
 /* example of generating several random unique cards
