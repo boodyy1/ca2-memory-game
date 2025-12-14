@@ -88,7 +88,24 @@ export class MemoryGame extends HTMLElement {
         winMsg.style.fontSize = '24px';
         winMsg.style.color = 'green';
         winMsg.style.fontWeight = 'bold';
+        winMsg.style.marginTop = '20px';
         container.appendChild(winMsg);
+
+        // play again button
+        const playAgainBtn = document.createElement('button');
+        playAgainBtn.id = 'play-again-btn';
+        playAgainBtn.textContent = 'Play Again';
+        playAgainBtn.style.display = 'none';
+        playAgainBtn.style.marginTop = '10px';
+        playAgainBtn.style.padding = '10px 20px';
+        playAgainBtn.style.fontSize = '16px';
+        playAgainBtn.style.cursor = 'pointer';
+        playAgainBtn.style.backgroundColor = '#4CAF50';
+        playAgainBtn.style.color = 'white';
+        playAgainBtn.style.border = 'none';
+        playAgainBtn.style.borderRadius = '4px';
+        playAgainBtn.addEventListener('click', () => this.resetGame());
+        container.appendChild(playAgainBtn);
 
         this.shadowRoot.appendChild(container);
 
@@ -183,8 +200,10 @@ export class MemoryGame extends HTMLElement {
 
     showWinMessage() {
         const winDiv = this.shadowRoot.querySelector('#win-message');
+        const playAgainBtn = this.shadowRoot.querySelector('#play-again-btn');
         winDiv.textContent = `You won! Total moves: ${this.movesCount}`;
         winDiv.style.display = 'block';
+        playAgainBtn.style.display = 'block';
 
         // save result to firestore
         this.saveGameResult();
@@ -235,6 +254,36 @@ export class MemoryGame extends HTMLElement {
             console.error('Error getting average:', error);
             avgDiv.textContent = 'Error loading average';
         }
+    }
+
+    resetGame() {
+        // reset game state
+        this.flippedCards = [];
+        this.matchedPairs = 0;
+        this.movesCount = 0;
+        this.isChecking = false;
+
+        // hide win message and button
+        const winDiv = this.shadowRoot.querySelector('#win-message');
+        const playAgainBtn = this.shadowRoot.querySelector('#play-again-btn');
+        winDiv.style.display = 'none';
+        playAgainBtn.style.display = 'none';
+
+        // reset stats display
+        const movesSpan = this.shadowRoot.querySelector('#moves');
+        const pairsSpan = this.shadowRoot.querySelector('#pairs');
+        movesSpan.textContent = '0';
+        pairsSpan.textContent = '0';
+
+        // reset all cards
+        const cards = this.shadowRoot.querySelectorAll('shape-card');
+        cards.forEach(card => {
+            card.removeAttribute('flipped');
+            card.removeAttribute('matched');
+        });
+
+        // shuffle and regenerate if needed
+        this.shuffleCards();
     }
 }
 
