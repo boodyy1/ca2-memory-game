@@ -1,24 +1,21 @@
 import { jest } from '@jest/globals';
 
-// Mock Firebase modules before any imports
-jest.mock('firebase/app', () => ({
-  initializeApp: jest.fn(() => ({})),
-}), { virtual: true });
+export const initializeApp = jest.fn(() => ({}));
+export const getAnalytics = jest.fn();
 
-jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(() => ({})),
-  collection: jest.fn(),
-  addDoc: jest.fn(),
-  serverTimestamp: jest.fn(),
-  getDocs: jest.fn(),
-}), { virtual: true });
+export const getFirestore = jest.fn(() => ({}));
+export const collection = jest.fn();
+export const addDoc = jest.fn();
+export const serverTimestamp = jest.fn();
+export const getDocs = jest.fn();
+export const query = jest.fn();
+export const where = jest.fn();
 
-jest.mock('firebase/analytics', () => ({
-  getAnalytics: jest.fn(),
-}), { virtual: true });
+export const db = {};
+export const analytics = {};
 
-// Mock the firebase-config module
-jest.mock('./firebase-config.js', () => ({
-  db: {},
-  analytics: {},
-}), { virtual: true });
+if (typeof window !== 'undefined') {
+  global.HTMLElement = window.HTMLElement;
+  global.HTMLTemplateElement = window.HTMLTemplateElement;
+  global.ShadowRoot = window.ShadowRoot;
+}
