@@ -1,14 +1,8 @@
 import {ShapeCard} from './shapecard.js';
+import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { db } from './firebase-config.js';
 
-/* custom element for memory card game 
-   takes size attribute in format 'rowsxcols' e.g. '3x4' 
-   
-   methods:
-   - handles card clicks
-   - checks for matches
-   - tracks game state
-*/
-
+// memory card game component
 export class MemoryGame extends HTMLElement {
     static observedAttributes = ["size"];
 
@@ -16,7 +10,6 @@ export class MemoryGame extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         
-        // game state variables
         this.flippedCards = [];
         this.matchedPairs = 0;
         this.totalPairs = 0;
@@ -26,54 +19,55 @@ export class MemoryGame extends HTMLElement {
 
     connectedCallback() {
         const sizeAttr = this.getAttribute('size');
-        if (!sizeAttr) {
-            throw new Error('size attribute is required');
-        }
 
-        // parse the size attribute
-        const parts = sizeAttr.toLowerCase().split('x');
-        if (parts.length !== 2) {
-            throw new Error('size must be in format rowsxcols e.g. 3x4');
-        }
-
-        const rows = parseInt(parts[0]);
-        const cols = parseInt(parts[1]);
-
-        if (isNaN(rows) || isNaN(cols)) {
-            throw new Error('rows and columns must be numbers');
-        }
+        // parse size - should be like '3 x 4'
+        const parts = sizeAttr.split('x');
+        const rows = parseInt(parts[0].trim());
+        const cols = parseInt(parts[1].trim());
 
         const totalCards = rows * cols;
-        if (totalCards % 2 !== 0) {
-            throw new Error('total number of cards must be even');
-        }
-
         this.totalPairs = totalCards / 2;
 
-        // create the game board
-        this.#setupGame(rows, cols);
+        this.setupGame(rows, cols);
     }
 
-    #setupGame(rows, cols) {
-        // create container for game
+    setupGame(rows, cols) {
+        // container
         const container = document.createElement('div');
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '20px';
         container.style.padding = '20px';
 
-        // add heading
+        // title
         const heading = document.createElement('h1');
         heading.textContent = 'Memory Card Game';
         container.appendChild(heading);
 
-        // stats display
+        // stats
         const stats = document.createElement('div');
         stats.id = 'stats';
         stats.innerHTML = `<p>Moves: <span id="moves">0</span> | Pairs Found: <span id="pairs">0</span>/${this.totalPairs}</p>`;
         container.appendChild(stats);
 
-        // game board
+        // button to show average
+        const avgButton = document.createElement('button');
+        avgButton.textContent = 'Show Average Clicks';
+        avgButton.style.padding = '10px 20px';
+        avgButton.style.fontSize = '16px';
+        avgButton.style.cursor = 'pointer';
+        avgButton.addEventListener('click', () => this.showAverageClicks());
+        container.appendChild(avgButton);
+
+        // div to display the average
+        const avgDisplay = document.createElement('div');
+        avgDisplay.id = 'average-display';
+        avgDisplay.style.marginTop = '10px';
+        avgDisplay.style.fontSize = '18px';
+        avgDisplay.style.fontWeight = 'bold';
+        container.appendChild(avgDisplay);
+
+        // create the board
         const board = document.createElement('div');
         board.id = 'game-board';
         board.style.display = 'grid';
@@ -81,13 +75,13 @@ export class MemoryGame extends HTMLElement {
         board.style.gridTemplateRows = `repeat(${rows}, 100px)`;
         board.style.gap = '10px';
 
-        // get the cards html
+        // get cards
         const cardsHTML = ShapeCard.getUniqueRandomCardsAsHTML(this.totalPairs, true);
         board.innerHTML = cardsHTML;
 
         container.appendChild(board);
 
-        // win message div
+        // for the win message
         const winMsg = document.createElement('div');
         winMsg.id = 'win-message';
         winMsg.style.display = 'none';
@@ -98,109 +92,148 @@ export class MemoryGame extends HTMLElement {
 
         this.shadowRoot.appendChild(container);
 
-        // add click handlers to all cards
-        this.#attachCardListeners();
-    }
-
-    #attachCardListeners() {
+        // setup click handlers
         const cards = this.shadowRoot.querySelectorAll('shape-card');
         cards.forEach(card => {
-            card.addEventListener('click', (e) => this.#handleCardClick(e));
+            card.addEventListener('click', (e) => this.handleCardClick(e));
         });
     }
 
-    #handleCardClick(event) {
+    handleCardClick(event) {
         const clickedCard = event.target;
 
-        // prevent clicking if already checking two cards
+        // don't let them click while we're checking
         if (this.isChecking) {
             return;
         }
 
-        // can't click already matched cards
+        // already matched cards shouldn't be clickable
         if (clickedCard.hasAttribute('matched')) {
             return;
         }
 
-        // can't click the same card twice
+        // can't click same card twice
         if (this.flippedCards.includes(clickedCard)) {
             return;
         }
 
-        // flip the card
+        // flip it
         if (!clickedCard.isFaceUp()) {
             clickedCard.flip();
             this.flippedCards.push(clickedCard);
         }
 
-        // check if we have two cards flipped
+        // if we have 2 cards flipped, check them
         if (this.flippedCards.length === 2) {
             this.movesCount++;
-            this.#updateStats();
+            this.updateStats();
             this.isChecking = true;
 
-            // check for match after a delay
+            // wait a bit so player can see both cards
             setTimeout(() => {
-                this.#checkForMatch();
+                this.checkMatch();
             }, 1000);
         }
     }
 
-    #checkForMatch() {
+    checkMatch() {
         const card1 = this.flippedCards[0];
         const card2 = this.flippedCards[1];
 
-        // get the attributes to compare
         const type1 = card1.getAttribute('type');
         const colour1 = card1.getAttribute('colour');
         const type2 = card2.getAttribute('type');
         const colour2 = card2.getAttribute('colour');
 
-        // check if they match
+        // do they match?
         if (type1 === type2 && colour1 === colour2) {
-            // it's a match!
+            // match!
             card1.setAttribute('matched', 'true');
             card2.setAttribute('matched', 'true');
             
-            // make them slightly transparent to show they're matched
+            // make them look different when matched
             card1.style.opacity = '0.6';
             card2.style.opacity = '0.6';
 
             this.matchedPairs++;
-            this.#updateStats();
+            this.updateStats();
 
-            // check if game is won
+            // did we win?
             if (this.matchedPairs === this.totalPairs) {
-                this.#showWinMessage();
+                this.showWinMessage();
             }
         } else {
-            // not a match, flip them back
+            // no match - flip back
             card1.flip();
             card2.flip();
         }
 
-        // reset for next turn
+        // reset
         this.flippedCards = [];
         this.isChecking = false;
     }
 
-    #updateStats() {
+    updateStats() {
         const movesSpan = this.shadowRoot.querySelector('#moves');
         const pairsSpan = this.shadowRoot.querySelector('#pairs');
         
-        if (movesSpan) {
-            movesSpan.textContent = this.movesCount;
-        }
-        if (pairsSpan) {
-            pairsSpan.textContent = this.matchedPairs;
+        movesSpan.textContent = this.movesCount;
+        pairsSpan.textContent = this.matchedPairs;
+    }
+
+    showWinMessage() {
+        const winDiv = this.shadowRoot.querySelector('#win-message');
+        winDiv.textContent = `You won! Total moves: ${this.movesCount}`;
+        winDiv.style.display = 'block';
+
+        // save result to firestore
+        this.saveGameResult();
+    }
+
+    async saveGameResult() {
+        try {
+            // create a new document in the 'gameResults' collection
+            const docRef = await addDoc(collection(db, 'gameResults'), {
+                clicks: this.movesCount,
+                timestamp: serverTimestamp()
+            });
+
+            console.log('Game saved with ID:', docRef.id);
+        } catch (error) {
+            console.error('Error saving game:', error);
         }
     }
 
-    #showWinMessage() {
-        const winDiv = this.shadowRoot.querySelector('#win-message');
-        if (winDiv) {
-            winDiv.textContent = `You won! Total moves: ${this.movesCount}`;
-            winDiv.style.display = 'block';
+    async showAverageClicks() {
+        const avgDiv = this.shadowRoot.querySelector('#average-display');
+        avgDiv.textContent = 'Loading...';
+
+        try {
+            // get all documents from gameResults collection
+            const querySnapshot = await getDocs(collection(db, 'gameResults'));
+
+            if (querySnapshot.empty) {
+                avgDiv.textContent = 'No games played yet!';
+                return;
+            }
+
+            // add up all the clicks
+            let totalClicks = 0;
+            let gameCount = 0;
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                totalClicks += data.clicks;
+                gameCount++;
+            });
+
+            // calculate average
+            const average = totalClicks / gameCount;
+
+            avgDiv.textContent = `Average clicks: ${average.toFixed(2)} (from ${gameCount} games)`;
+        } catch (error) {
+            console.error('Error getting average:', error);
+            avgDiv.textContent = 'Error loading average';
         }
     }
 }
