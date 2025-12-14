@@ -281,9 +281,6 @@ export class MemoryGame extends HTMLElement {
             card.removeAttribute('flipped');
             card.removeAttribute('matched');
         });
-
-        // shuffle and regenerate if needed
-        this.shuffleCards();
     }
 }
 

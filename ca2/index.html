@@ -4,32 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CA2</title>
-
-    <!-- Firebase stuff -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-        // your firebase config here
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
-        // start firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // make it available globally so other files can use it
-        window.db = db;
-    </script>
-
-    <script type="module" src="main.js"></script>
+    <title>CA2 - Memory Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+    </style>
 </head>
 
 <body>
@@ -74,8 +60,9 @@
         </div>
     </template>
 
-    <memory-game size="3 x 4"></memory-game>
+    <memory-game size="3x4"></memory-game>
 
+    <script type="module" src="main.js" defer></script>
 </body>
 
 </html>
