@@ -1,108 +1,164 @@
-/* expects attributes:
-   type = 'circle' | 'square' | 'triangle' 
-   colour = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'purple' 
-   
-   public methods:
-   flip()
-   isFaceDown()
-   getUniqueRandomCardsAsHTML (static)
-
-   (see examples below and in the HTML file)
-   */
-
 export class ShapeCard extends HTMLElement {
     static observedAttributes = ["type", "colour"];
 
-    static HEIGHT = '100px';
-    static WIDTH = '100px';
-    static BORDER = '1px';
-
-    static SHAPE_DATA = { circle: { tag: 'circle' }, square: { tag: 'rect' }, triangle: { tag: 'polygon' } };
-    static get SHAPES() {
-        return Object.keys(ShapeCard.SHAPE_DATA);
-    }
-    static shapeTag(type) {
-        return ShapeCard.SHAPE_DATA[type].tag;
-    }
-    static COLOURS = ['red', 'green', 'blue', 'yellow', 'orange', 'purple'];
-
-    static COMBINATIONS = ShapeCard.SHAPES.map(s => ShapeCard.COLOURS.map(c => [s, c])).flat();
-
-    static getUniqueRandomCardsAsHTML(count, duplicate) {
-        if (count > this.COMBINATIONS.length) {
-            throw new Error(`Cannot get ${count} unique shape cards. Maximum is ${this.COMBINATIONS.length}.`);
-        }
-
-        return ShapeCard.COMBINATIONS.
-            // shuffle COMBINATIONS 
-            reduce((acc, val) => {
-                return acc.toSpliced(Math.floor(Math.random() * (acc.length + 1)), 0, val);
-            }, []).
-            // take only first rows * cols / 2 combinations
-            slice(0, count).
-            // create two of each card
-            reduce((acc, val) => {
-                for (let i = 0; i < (duplicate ? 2 : 1); ++i) {
-                    acc.splice(Math.floor(Math.random() * (acc.length + 1)), 0, val);
-                }
-                return acc;
-            }, []).
-            // map to shape-card elements and join together
-            map(([type, colour]) => `<shape-card type="${type}" colour="${colour}"></shape-card>`).join('');
-    }
-
+    // Constructor - this gets called when we make a new card
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
     }
 
     connectedCallback() {
+        // Get the template and add it to our shadow root
         this.shadowRoot.appendChild(document.getElementById('shape-card-template').content.cloneNode(true));
 
-        this.#setShape(null, this.getAttribute('type'));
-        this.#setColour(this.getAttribute('colour'));
+        // Set up the shape and colour based on attributes
+        this.setShape(null, this.getAttribute('type'));
+        this.setColour(this.getAttribute('colour'));
 
-        this.style.setProperty("--card-width", ShapeCard.WIDTH);
-        this.style.setProperty("--card-height", ShapeCard.HEIGHT);
-        this.style.setProperty("--card-border", ShapeCard.BORDER);
+        // Set CSS variables for the card size
+        this.style.setProperty("--card-width", '100px');
+        this.style.setProperty("--card-height", '100px');
+        this.style.setProperty("--card-border", '1px');
     }
 
+    // This gets called whenever an attribute changes
     attributeChangedCallback(name, oldVal, newVal) {
         if (this.shadowRoot) {
             if (name == 'type') {
-                this.#setShape(oldVal, newVal);
+                this.setShape(oldVal, newVal);
             } else if (name == 'colour') {
-                this.#setColour(newVal);
+                this.setColour(newVal);
             }
         }
     }
 
-    #setShape(oldVal, newVal) {
-        if (newVal && !(newVal in ShapeCard.SHAPE_DATA)) {
-            throw new Error(`Invalid shape type attribute ${newType}. Expected one of ${ShapeCard.SHAPES.join(', ')}.`);
+    // Change the shape that's displayed
+    setShape(oldVal, newVal) {
+        // Hide the old shape
+        if (oldVal) {
+            let oldShapeTag = this.getShapeTag(oldVal);
+            let oldShape = this.shadowRoot.querySelector(oldShapeTag);
+            if (oldShape) {
+                oldShape.setAttribute('fill-opacity', '0');
+            }
         }
-        // make the old shape invisible and the new shape visible
-        oldVal && this.shadowRoot.querySelector(ShapeCard.shapeTag(oldVal))?.setAttribute('fill-opacity', '0');
-        newVal && this.shadowRoot.querySelector(ShapeCard.shapeTag(newVal))?.setAttribute('fill-opacity', '1');
+        // Show the new shape
+        if (newVal) {
+            let newShapeTag = this.getShapeTag(newVal);
+            let newShape = this.shadowRoot.querySelector(newShapeTag);
+            if (newShape) {
+                newShape.setAttribute('fill-opacity', '1');
+            }
+        }
     }
 
-    #setColour(newVal) {
-        if (newVal && !ShapeCard.COLOURS.includes(newVal)) {
-            throw new Error(`Invalid colour attribute ${newVal}. Expected one of ${ShapeCard.COLOURS.join(', ')}.`);
+    // Helper function to get the SVG tag for each shape type
+    getShapeTag(type) {
+        if (type === 'circle') {
+            return 'circle';
+        } else if (type === 'square') {
+            return 'rect';
+        } else if (type === 'triangle') {
+            return 'polygon';
         }
-        // change the colour of the shape
-        newVal && this.shadowRoot.querySelector(ShapeCard.shapeTag(this.getAttribute("type")))?.setAttribute('fill', newVal);
     }
 
+    // Change the colour of the shape
+    setColour(newVal) {
+        if (newVal) {
+            let shapeTag = this.getShapeTag(this.getAttribute("type"));
+            let shape = this.shadowRoot.querySelector(shapeTag);
+            if (shape) {
+                shape.setAttribute('fill', newVal);
+            }
+        }
+    }
+
+    // Check if the card is showing the front side
     isFaceUp() {
         const card = this.shadowRoot.querySelector('.card');
         return card.classList.contains('card-face-up');
     }
 
+    // Flip the card over
     flip() {
         const card = this.shadowRoot.querySelector('.card');
         card.classList.toggle('card-face-down');
         card.classList.toggle('card-face-up');
     }
+
+    // Static method to generate random cards
+    static getUniqueRandomCardsAsHTML(count, duplicate) {
+        // All possible shapes
+        let shapes = ['circle', 'square', 'triangle'];
+        // All possible colours
+        let colours = ['red', 'green', 'blue', 'yellow', 'orange', 'purple'];
+        
+        // Make all possible combinations
+        let allCombinations = [];
+        for (let i = 0; i < shapes.length; i++) {
+            for (let j = 0; j < colours.length; j++) {
+                allCombinations.push([shapes[i], colours[j]]);
+            }
+        }
+
+        // Check if we have enough combinations
+        if (count > allCombinations.length) {
+            console.log("Error: not enough unique combinations!");
+            return '';
+        }
+
+        // Shuffle the combinations array
+        let shuffled = [];
+        let tempArray = [];
+        // Copy the array
+        for (let i = 0; i < allCombinations.length; i++) {
+            tempArray.push(allCombinations[i]);
+        }
+        // Pick random items
+        while (tempArray.length > 0) {
+            let randomIndex = Math.floor(Math.random() * tempArray.length);
+            shuffled.push(tempArray[randomIndex]);
+            tempArray.splice(randomIndex, 1);
+        }
+
+        // Take only the number we need
+        let selected = [];
+        for (let i = 0; i < count; i++) {
+            selected.push(shuffled[i]);
+        }
+
+        // If we need duplicates, add each card twice
+        let cards = [];
+        if (duplicate) {
+            for (let i = 0; i < selected.length; i++) {
+                cards.push(selected[i]);
+                cards.push(selected[i]); // add it twice
+            }
+        } else {
+            cards = selected;
+        }
+
+        // Shuffle the final card array
+        let finalCards = [];
+        while (cards.length > 0) {
+            let randomIndex = Math.floor(Math.random() * cards.length);
+            finalCards.push(cards[randomIndex]);
+            cards.splice(randomIndex, 1);
+        }
+
+        // Build the HTML string
+        let html = '';
+        for (let i = 0; i < finalCards.length; i++) {
+            let card = finalCards[i];
+            let type = card[0];
+            let colour = card[1];
+            html += `<shape-card type="${type}" colour="${colour}"></shape-card>`;
+        }
+
+        return html;
+    }
 }
+
+// Register the custom element
 customElements.define('shape-card', ShapeCard);
