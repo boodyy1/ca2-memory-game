@@ -1,3 +1,4 @@
+// Jest configuration for memory game tests with Firebase mocks
 export default {
   testEnvironment: 'jsdom',
   transform: {},
